@@ -1,21 +1,41 @@
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, Activity, TrendingUp, Play } from 'lucide-react';
-import { mockSessions } from '@/lib/mockData';
-
-const stats = [
-  { label: 'Total Sessions', value: '127', icon: Activity, change: '+12 this week' },
-  { label: 'Patients Treated', value: '34', icon: Users, change: '+3 new' },
-  { label: 'Avg Recovery Score', value: '78%', icon: TrendingUp, change: '+5% from last month' },
-  { label: 'Active Sessions', value: '2', icon: Play, change: 'In progress' },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [patientCount, setPatientCount] = useState(0);
+  const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+
+    supabase.from('profiles').select('full_name').eq('user_id', user.id).single()
+      .then(({ data }) => setProfile(data));
+
+    supabase.from('sessions').select('*, patients(name)').eq('user_id', user.id).order('date', { ascending: false }).limit(10)
+      .then(({ data }) => setSessions(data || []));
+
+    supabase.from('patients').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+      .then(({ count }) => setPatientCount(count || 0));
+  }, [user]);
+
+  const stats = [
+    { label: 'Total Sessions', value: String(sessions.length), icon: Activity, change: 'All time' },
+    { label: 'Patients Treated', value: String(patientCount), icon: Users, change: 'Unique patients' },
+    { label: 'Avg Grip Force', value: sessions.length > 0 ? `${(sessions.reduce((s, x) => s + (Number(x.avg_grip_force) || 0), 0) / sessions.length).toFixed(1)} N` : '—', icon: TrendingUp, change: 'Across sessions' },
+    { label: 'Active Sessions', value: String(sessions.filter(s => !s.duration_seconds).length), icon: Play, change: 'In progress' },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">Welcome back, Dr. Mitchell</p>
+        <p className="text-muted-foreground text-sm">Welcome back, {profile?.full_name || user?.email}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -40,34 +60,38 @@ const Dashboard = () => {
       <Card className="shadow-card">
         <CardHeader><CardTitle className="text-lg">Recent Sessions</CardTitle></CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-3 font-medium text-muted-foreground">Patient</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Date</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Emotion</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Grip Force</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockSessions.map((s) => (
-                  <tr key={s.id} className="border-b last:border-0 hover:bg-muted/50">
-                    <td className="py-3 font-medium">{s.patient.name}</td>
-                    <td className="py-3 text-muted-foreground">{s.date}</td>
-                    <td className="py-3"><Badge variant="secondary">{s.dominantEmotion}</Badge></td>
-                    <td className="py-3">{s.avgGripForce.toFixed(1)} N</td>
-                    <td className="py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.status === 'SAFE' ? 'status-safe' : s.status === 'CAUTION' ? 'status-caution' : 'status-pause'}`}>
-                        {s.status}
-                      </span>
-                    </td>
+          {sessions.length === 0 ? (
+            <p className="text-muted-foreground text-sm py-8 text-center">No sessions yet. Start a new session to see data here.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-3 font-medium text-muted-foreground">Patient</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Emotion</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Grip Force</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sessions.map((s) => (
+                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/50">
+                      <td className="py-3 font-medium">{(s.patients as any)?.name || 'Unknown'}</td>
+                      <td className="py-3 text-muted-foreground">{new Date(s.date).toLocaleDateString()}</td>
+                      <td className="py-3"><Badge variant="secondary">{s.dominant_emotion || '—'}</Badge></td>
+                      <td className="py-3">{s.avg_grip_force ? `${Number(s.avg_grip_force).toFixed(1)} N` : '—'}</td>
+                      <td className="py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.status === 'SAFE' ? 'status-safe' : s.status === 'CAUTION' ? 'status-caution' : 'status-pause'}`}>
+                          {s.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
