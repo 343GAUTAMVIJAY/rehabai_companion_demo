@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,8 +9,14 @@ import { EMOTIONS, EMOTION_COLORS, getEmotionRobotParams, getStressIndex, type E
 import { Camera, Square, AlertTriangle, Heart, Droplets, Wind, Gauge } from 'lucide-react';
 import { toast } from 'sonner';
 import RobotArm3D from '@/components/RobotArm3D';
+import { supabase } from '@/integrations/supabase/client';
 
 const LiveSession = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const sessionId = location.state?.sessionId as string | undefined;
+  const patient = location.state?.patient;
+
   const [running, setRunning] = useState(false);
   const [timer, setTimer] = useState(0);
   const [emotion, setEmotion] = useState<Emotion>('Neutral');
@@ -19,15 +26,15 @@ const LiveSession = () => {
   const [pauseCount, setPauseCount] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const emotionLogRef = useRef<any[]>([]);
+  const robotLogRef = useRef<any[]>([]);
 
   const stressIndex = getStressIndex(emotion, vitals.painLevel);
 
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
     } catch {
       toast.error('Camera access denied — using simulated feed');
     }
@@ -62,6 +69,10 @@ const LiveSession = () => {
       setConfidence(newConf);
       const params = getEmotionRobotParams(newEmotion, newConf);
       setRobotParams(params);
+
+      emotionLogRef.current.push({ time: emotionLogRef.current.length, emotion: newEmotion, confidence: newConf });
+      robotLogRef.current.push({ gripForce: params.gripForce, xAxis: params.xAxis, yAxis: params.yAxis, zAxis: params.zAxis, speed: params.speed });
+
       if (params.status === 'PAUSE') {
         setPauseCount(c => {
           const next = c + 1;
@@ -89,7 +100,37 @@ const LiveSession = () => {
   useEffect(() => { if (running) drawFaceBox(); }, [running, emotion, confidence, drawFaceBox]);
 
   const handleStart = () => { setRunning(true); startCamera(); toast.success('Session started'); };
-  const handleStop = () => { setRunning(false); toast.info('Session ended'); if (videoRef.current?.srcObject) { (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop()); } };
+
+  const handleStop = async () => {
+    setRunning(false);
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+    }
+
+    // Find dominant emotion
+    const emotionCounts: Record<string, number> = {};
+    emotionLogRef.current.forEach(e => { emotionCounts[e.emotion] = (emotionCounts[e.emotion] || 0) + 1; });
+    const dominantEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Neutral';
+    const avgGrip = robotLogRef.current.length > 0
+      ? robotLogRef.current.reduce((s, r) => s + r.gripForce, 0) / robotLogRef.current.length
+      : 0;
+
+    // Save to database
+    if (sessionId) {
+      await supabase.from('sessions').update({
+        duration_seconds: timer,
+        dominant_emotion: dominantEmotion,
+        avg_grip_force: avgGrip,
+        status: robotParams.status,
+        emotion_log: emotionLogRef.current,
+        vitals: vitals,
+        robot_log: robotLogRef.current,
+      }).eq('id', sessionId);
+    }
+
+    toast.info('Session ended and saved');
+    navigate(`/report/${sessionId}`);
+  };
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -98,7 +139,9 @@ const LiveSession = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Live Session</h1>
-          <p className="text-muted-foreground text-sm">Real-time emotion detection & robot control</p>
+          <p className="text-muted-foreground text-sm">
+            {patient ? `Patient: ${patient.name}` : 'Real-time emotion detection & robot control'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {running && (
@@ -125,7 +168,6 @@ const LiveSession = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Camera Feed */}
         <Card className="lg:col-span-2 shadow-card">
           <CardHeader className="pb-2"><CardTitle className="text-base">Camera Feed — Emotion Detection</CardTitle></CardHeader>
           <CardContent>
@@ -138,16 +180,13 @@ const LiveSession = () => {
               <div className="mt-3 flex items-center gap-4">
                 <span className="text-sm font-medium">Detected:</span>
                 <Badge style={{ backgroundColor: EMOTION_COLORS[emotion] }} className="text-accent-foreground text-sm border-0">{emotion}</Badge>
-                <div className="flex-1">
-                  <Progress value={confidence} className="h-2" />
-                </div>
+                <div className="flex-1"><Progress value={confidence} className="h-2" /></div>
                 <span className="text-sm font-mono text-muted-foreground">{confidence.toFixed(1)}%</span>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Vitals */}
         <Card className="shadow-card">
           <CardHeader className="pb-2"><CardTitle className="text-base">Vital Signs</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -164,7 +203,6 @@ const LiveSession = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Robot Params */}
         <Card className="shadow-card">
           <CardHeader className="pb-2"><CardTitle className="text-base">Robot Adjustment Panel</CardTitle></CardHeader>
           <CardContent>
@@ -179,7 +217,6 @@ const LiveSession = () => {
           </CardContent>
         </Card>
 
-        {/* 3D Robot */}
         <Card className="shadow-card">
           <CardHeader className="pb-2"><CardTitle className="text-base">Robot Arm Visualization</CardTitle></CardHeader>
           <CardContent>

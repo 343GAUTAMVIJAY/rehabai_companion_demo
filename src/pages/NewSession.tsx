@@ -8,19 +8,61 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const NewSession = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [form, setForm] = useState({ name: '', age: '', gender: '', diagnosis: '', limb: '', notes: '' });
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleStart = (e: React.FormEvent) => {
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.age || !form.diagnosis) {
       toast.error('Please fill in required fields');
       return;
     }
-    toast.success('Session started — initializing camera & ML pipeline');
-    navigate('/live-session', { state: { patient: form } });
+    if (!user) return;
+
+    setSubmitting(true);
+    try {
+      // Create or find patient
+      const { data: patient, error: patientErr } = await supabase
+        .from('patients')
+        .insert({
+          user_id: user.id,
+          name: form.name,
+          age: parseInt(form.age),
+          gender: form.gender || null,
+          diagnosis: form.diagnosis,
+          affected_limb: form.limb || null,
+          notes: form.notes || null,
+        })
+        .select()
+        .single();
+
+      if (patientErr) throw patientErr;
+
+      // Create session
+      const { data: session, error: sessionErr } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: user.id,
+          patient_id: patient.id,
+        })
+        .select()
+        .single();
+
+      if (sessionErr) throw sessionErr;
+
+      toast.success('Session started — initializing camera & ML pipeline');
+      navigate('/live-session', { state: { patient, sessionId: session.id } });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to start session');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -59,8 +101,8 @@ const NewSession = () => {
             </div>
             <div><Label>Diagnosis *</Label><Input value={form.diagnosis} onChange={e => setForm(f => ({ ...f, diagnosis: e.target.value }))} placeholder="e.g., Post-stroke hemiparesis" /></div>
             <div><Label>Session Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Additional notes..." rows={3} /></div>
-            <Button type="submit" className="w-full gradient-accent border-0 text-accent-foreground font-semibold">
-              <Play className="w-4 h-4 mr-2" /> Start Session
+            <Button type="submit" disabled={submitting} className="w-full gradient-accent border-0 text-accent-foreground font-semibold">
+              <Play className="w-4 h-4 mr-2" /> {submitting ? 'Starting...' : 'Start Session'}
             </Button>
           </form>
         </CardContent>
