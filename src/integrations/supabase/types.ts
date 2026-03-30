@@ -14,7 +14,140 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      patients: {
+        Row: {
+          affected_limb: string | null
+          age: number
+          created_at: string
+          diagnosis: string
+          gender: string | null
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          affected_limb?: string | null
+          age: number
+          created_at?: string
+          diagnosis: string
+          gender?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          affected_limb?: string | null
+          age?: number
+          created_at?: string
+          diagnosis?: string
+          gender?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          full_name: string | null
+          hospital: string | null
+          id: string
+          phone: string | null
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string | null
+          hospital?: string | null
+          id?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string | null
+          hospital?: string | null
+          id?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          avg_grip_force: number | null
+          created_at: string
+          date: string
+          dominant_emotion: string | null
+          duration_seconds: number | null
+          emotion_log: Json | null
+          id: string
+          patient_id: string
+          robot_log: Json | null
+          status: string | null
+          updated_at: string
+          user_id: string
+          vitals: Json | null
+        }
+        Insert: {
+          avg_grip_force?: number | null
+          created_at?: string
+          date?: string
+          dominant_emotion?: string | null
+          duration_seconds?: number | null
+          emotion_log?: Json | null
+          id?: string
+          patient_id: string
+          robot_log?: Json | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+          vitals?: Json | null
+        }
+        Update: {
+          avg_grip_force?: number | null
+          created_at?: string
+          date?: string
+          dominant_emotion?: string | null
+          duration_seconds?: number | null
+          emotion_log?: Json | null
+          id?: string
+          patient_id?: string
+          robot_log?: Json | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+          vitals?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
