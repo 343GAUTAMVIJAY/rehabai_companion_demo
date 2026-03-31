@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const AppLayout = () => {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ const AppLayout = () => {
           <header className="h-14 flex items-center border-b bg-card px-4 gap-4">
             <SidebarTrigger />
             <div className="flex-1" />
+            <ThemeToggle />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-xs font-bold">{initials}</div>
               <span className="text-sm font-medium text-foreground hidden sm:inline">{displayName}</span>

@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { EMOTIONS, EMOTION_COLORS, getEmotionRobotParams, getStressIndex, type Emotion, type RobotStatus } from '@/lib/mockData';
-import { Camera, Square, AlertTriangle, Heart, Droplets, Wind, Gauge } from 'lucide-react';
+import { Camera, Square, AlertTriangle, Heart, Droplets, Wind, Gauge, Edit3, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import RobotArm3D from '@/components/RobotArm3D';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +23,7 @@ const LiveSession = () => {
   const [timer, setTimer] = useState(0);
   const [emotion, setEmotion] = useState<Emotion>('Neutral');
   const [confidence, setConfidence] = useState(92);
+  const [manualVitals, setManualVitals] = useState(false);
   const [vitals, setVitals] = useState({ heartRate: 72, bpSystolic: 120, bpDiastolic: 80, spo2: 98, painLevel: 3 });
   const [robotParams, setRobotParams] = useState({ gripForce: 15, xAxis: 0, yAxis: 0, zAxis: 0, speed: 50, status: 'SAFE' as RobotStatus });
   const [pauseCount, setPauseCount] = useState(0);
@@ -63,8 +66,17 @@ const LiveSession = () => {
   useEffect(() => {
     if (!running) return;
     const interval = setInterval(() => {
-      const newEmotion = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)];
-      const newConf = 60 + Math.random() * 38;
+      // Weighted emotion selection for more realistic distribution
+      const weights = [0.25, 0.1, 0.05, 0.08, 0.35, 0.05, 0.12]; // Happy, Sad, Angry, Fear, Neutral, Disgust, Surprise
+      const r = Math.random();
+      let cumulative = 0;
+      let selectedIdx = 0;
+      for (let i = 0; i < weights.length; i++) {
+        cumulative += weights[i];
+        if (r <= cumulative) { selectedIdx = i; break; }
+      }
+      const newEmotion = EMOTIONS[selectedIdx];
+      const newConf = 72 + Math.random() * 26; // 72-98% range for more realistic confidence
       setEmotion(newEmotion);
       setConfidence(newConf);
       const params = getEmotionRobotParams(newEmotion, newConf);
@@ -80,16 +92,20 @@ const LiveSession = () => {
           return next;
         });
       }
-      setVitals(v => ({
-        heartRate: Math.max(60, Math.min(110, v.heartRate + (Math.random() * 6 - 3))),
-        bpSystolic: Math.max(100, Math.min(150, v.bpSystolic + (Math.random() * 4 - 2))),
-        bpDiastolic: Math.max(60, Math.min(95, v.bpDiastolic + (Math.random() * 4 - 2))),
-        spo2: Math.max(94, Math.min(100, v.spo2 + (Math.random() * 0.6 - 0.3))),
-        painLevel: v.painLevel,
-      }));
+
+      // Auto-simulate vitals only if not in manual mode
+      if (!manualVitals) {
+        setVitals(v => ({
+          heartRate: Math.max(55, Math.min(120, v.heartRate + (Math.random() * 4 - 2))),
+          bpSystolic: Math.max(95, Math.min(160, v.bpSystolic + (Math.random() * 3 - 1.5))),
+          bpDiastolic: Math.max(55, Math.min(100, v.bpDiastolic + (Math.random() * 3 - 1.5))),
+          spo2: Math.max(92, Math.min(100, v.spo2 + (Math.random() * 0.4 - 0.2))),
+          painLevel: v.painLevel,
+        }));
+      }
     }, 2000);
     return () => clearInterval(interval);
-  }, [running]);
+  }, [running, manualVitals]);
 
   useEffect(() => {
     if (!running) return;
@@ -107,7 +123,6 @@ const LiveSession = () => {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     }
 
-    // Find dominant emotion
     const emotionCounts: Record<string, number> = {};
     emotionLogRef.current.forEach(e => { emotionCounts[e.emotion] = (emotionCounts[e.emotion] || 0) + 1; });
     const dominantEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Neutral';
@@ -115,7 +130,6 @@ const LiveSession = () => {
       ? robotLogRef.current.reduce((s, r) => s + r.gripForce, 0) / robotLogRef.current.length
       : 0;
 
-    // Save to database
     if (sessionId) {
       await supabase.from('sessions').update({
         duration_seconds: timer,
@@ -133,6 +147,11 @@ const LiveSession = () => {
   };
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  const updateVital = (key: string, value: string) => {
+    const num = parseFloat(value);
+    if (!isNaN(num)) setVitals(v => ({ ...v, [key]: num }));
+  };
 
   return (
     <div className="space-y-4">
@@ -188,16 +207,53 @@ const LiveSession = () => {
         </Card>
 
         <Card className="shadow-card">
-          <CardHeader className="pb-2"><CardTitle className="text-base">Vital Signs</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <VitalItem icon={Heart} label="Heart Rate" value={`${Math.round(vitals.heartRate)} BPM`} color="text-destructive" />
-            <VitalItem icon={Gauge} label="Blood Pressure" value={`${Math.round(vitals.bpSystolic)}/${Math.round(vitals.bpDiastolic)}`} color="text-info" />
-            <VitalItem icon={Droplets} label="SpO2" value={`${vitals.spo2.toFixed(1)}%`} color="text-secondary" />
-            <VitalItem icon={Wind} label="Stress Index" value={`${stressIndex}/100`} color="text-warning" />
-            <div>
-              <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Pain Level</span><span className="font-mono">{vitals.painLevel}/10</span></div>
-              <Slider value={[vitals.painLevel]} min={1} max={10} step={1} onValueChange={([v]) => setVitals(prev => ({ ...prev, painLevel: v }))} />
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Vital Signs</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setManualVitals(!manualVitals)} className="text-xs gap-1">
+                {manualVitals ? <Lock className="w-3 h-3" /> : <Edit3 className="w-3 h-3" />}
+                {manualVitals ? 'Auto' : 'Manual'}
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {manualVitals ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Heart Rate (BPM)</Label>
+                    <Input type="number" value={Math.round(vitals.heartRate)} onChange={e => updateVital('heartRate', e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">SpO2 (%)</Label>
+                    <Input type="number" value={vitals.spo2.toFixed(1)} onChange={e => updateVital('spo2', e.target.value)} className="h-8 text-sm" step="0.1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">BP Systolic</Label>
+                    <Input type="number" value={Math.round(vitals.bpSystolic)} onChange={e => updateVital('bpSystolic', e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">BP Diastolic</Label>
+                    <Input type="number" value={Math.round(vitals.bpDiastolic)} onChange={e => updateVital('bpDiastolic', e.target.value)} className="h-8 text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Pain Level</span><span className="font-mono">{vitals.painLevel}/10</span></div>
+                  <Slider value={[vitals.painLevel]} min={1} max={10} step={1} onValueChange={([v]) => setVitals(prev => ({ ...prev, painLevel: v }))} />
+                </div>
+              </>
+            ) : (
+              <>
+                <VitalItem icon={Heart} label="Heart Rate" value={`${Math.round(vitals.heartRate)} BPM`} color="text-destructive" />
+                <VitalItem icon={Gauge} label="Blood Pressure" value={`${Math.round(vitals.bpSystolic)}/${Math.round(vitals.bpDiastolic)}`} color="text-info" />
+                <VitalItem icon={Droplets} label="SpO2" value={`${vitals.spo2.toFixed(1)}%`} color="text-secondary" />
+                <VitalItem icon={Wind} label="Stress Index" value={`${stressIndex}/100`} color="text-warning" />
+                <div>
+                  <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Pain Level</span><span className="font-mono">{vitals.painLevel}/10</span></div>
+                  <Slider value={[vitals.painLevel]} min={1} max={10} step={1} onValueChange={([v]) => setVitals(prev => ({ ...prev, painLevel: v }))} />
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
