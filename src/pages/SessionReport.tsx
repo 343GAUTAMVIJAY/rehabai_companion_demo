@@ -6,6 +6,9 @@ import { ArrowLeft, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const SessionReport = () => {
   const { id } = useParams();
@@ -44,8 +47,92 @@ const SessionReport = () => {
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  const handleExport = (type: 'pdf' | 'excel') => {
-    toast.success(`${type.toUpperCase()} report exported successfully`);
+  const handleExportPDF = () => {
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text('RehabAI Session Report', 14, 20);
+      doc.setFontSize(11);
+      doc.text(`Patient: ${patient?.name || 'Unknown'}`, 14, 30);
+      doc.text(`Date: ${new Date(session.date).toLocaleDateString()}`, 14, 37);
+      doc.text(`Duration: ${formatDuration(session.duration_seconds)}`, 14, 44);
+      doc.text(`Dominant Emotion: ${session.dominant_emotion || '—'}`, 14, 51);
+      doc.text(`Avg Grip Force: ${session.avg_grip_force ? `${Number(session.avg_grip_force).toFixed(1)} N` : '—'}`, 14, 58);
+      doc.text(`Status: ${session.status || '—'}`, 14, 65);
+
+      if (vitals.heartRate) {
+        doc.text('Vitals:', 14, 75);
+        doc.text(`  Heart Rate: ${Math.round(vitals.heartRate)} BPM`, 14, 82);
+        doc.text(`  Blood Pressure: ${Math.round(vitals.bpSystolic)}/${Math.round(vitals.bpDiastolic)}`, 14, 89);
+        doc.text(`  SpO2: ${Number(vitals.spo2).toFixed(1)}%`, 14, 96);
+        doc.text(`  Pain Level: ${vitals.painLevel}/10`, 14, 103);
+      }
+
+      if (emotionLog.length > 0) {
+        doc.text('Emotion Log:', 14, 116);
+        autoTable(doc, {
+          startY: 120,
+          head: [['Time', 'Emotion', 'Confidence %']],
+          body: emotionLog.map(e => [e.time, e.emotion, `${Number(e.confidence).toFixed(1)}%`]),
+          styles: { fontSize: 8 },
+        });
+      }
+
+      doc.save(`RehabAI_Report_${patient?.name || 'session'}_${new Date(session.date).toISOString().slice(0, 10)}.pdf`);
+      toast.success('PDF report downloaded');
+    } catch {
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      const summary = [
+        ['RehabAI Session Report'],
+        ['Patient', patient?.name || 'Unknown'],
+        ['Date', new Date(session.date).toLocaleDateString()],
+        ['Duration', formatDuration(session.duration_seconds)],
+        ['Dominant Emotion', session.dominant_emotion || '—'],
+        ['Avg Grip Force', session.avg_grip_force ? `${Number(session.avg_grip_force).toFixed(1)} N` : '—'],
+        ['Status', session.status || '—'],
+        [],
+        ['Vitals'],
+        ['Heart Rate', vitals.heartRate ? `${Math.round(vitals.heartRate)} BPM` : '—'],
+        ['Blood Pressure', vitals.bpSystolic ? `${Math.round(vitals.bpSystolic)}/${Math.round(vitals.bpDiastolic)}` : '—'],
+        ['SpO2', vitals.spo2 ? `${Number(vitals.spo2).toFixed(1)}%` : '—'],
+        ['Pain Level', vitals.painLevel != null ? `${vitals.painLevel}/10` : '—'],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+      if (emotionLog.length > 0) {
+        const emSheet = XLSX.utils.json_to_sheet(emotionLog.map(e => ({
+          Time: e.time,
+          Emotion: e.emotion,
+          'Confidence %': Number(e.confidence).toFixed(1),
+        })));
+        XLSX.utils.book_append_sheet(wb, emSheet, 'Emotion Log');
+      }
+
+      if (robotLog.length > 0) {
+        const rbSheet = XLSX.utils.json_to_sheet(robotLog.map((r: any, i: number) => ({
+          Time: i,
+          'Grip Force (N)': Number(r.gripForce).toFixed(1),
+          'X-Axis': Number(r.xAxis).toFixed(1),
+          'Y-Axis': Number(r.yAxis).toFixed(1),
+          'Z-Axis': Number(r.zAxis).toFixed(1),
+          'Speed (mm/s)': Number(r.speed).toFixed(1),
+        })));
+        XLSX.utils.book_append_sheet(wb, rbSheet, 'Robot Log');
+      }
+
+      XLSX.writeFile(wb, `RehabAI_Report_${patient?.name || 'session'}_${new Date(session.date).toISOString().slice(0, 10)}.xlsx`);
+      toast.success('Excel report downloaded');
+    } catch {
+      toast.error('Failed to generate Excel');
+    }
   };
 
   return (
@@ -56,8 +143,8 @@ const SessionReport = () => {
           <h1 className="text-2xl font-bold text-foreground">Session Report</h1>
           <p className="text-muted-foreground text-sm">{patient?.name || 'Unknown'} — {new Date(session.date).toLocaleDateString()}</p>
         </div>
-        <Button variant="outline" onClick={() => handleExport('excel')}><Download className="w-4 h-4 mr-2" />Excel</Button>
-        <Button onClick={() => handleExport('pdf')} className="gradient-accent border-0 text-accent-foreground"><Download className="w-4 h-4 mr-2" />PDF</Button>
+        <Button variant="outline" onClick={handleExportExcel}><Download className="w-4 h-4 mr-2" />Excel</Button>
+        <Button onClick={handleExportPDF} className="gradient-accent border-0 text-accent-foreground"><Download className="w-4 h-4 mr-2" />PDF</Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

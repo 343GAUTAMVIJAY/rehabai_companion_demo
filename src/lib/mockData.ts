@@ -37,22 +37,24 @@ export const EMOTION_COLORS: Record<Emotion, string> = {
 };
 
 export function getEmotionRobotParams(emotion: Emotion, confidence: number) {
-  const base = { gripForce: 15, xAxis: 0, yAxis: 0, zAxis: 0, speed: 50, status: 'SAFE' as RobotStatus };
+  const cf = confidence / 100; // normalize 0-1
   switch (emotion) {
     case 'Fear':
-      return { gripForce: 8 + Math.random() * 3, xAxis: -5, yAxis: 2, zAxis: -3, speed: 25, status: 'CAUTION' as RobotStatus };
+      return { gripForce: 6 + cf * 4, xAxis: -8 * cf, yAxis: 3 * cf, zAxis: -5 * cf, speed: 15 + cf * 15, status: 'CAUTION' as RobotStatus };
     case 'Angry':
+      return { gripForce: 3, xAxis: 0, yAxis: 0, zAxis: 0, speed: 0, status: 'PAUSE' as RobotStatus };
     case 'Disgust':
-      return { gripForce: 5, xAxis: 0, yAxis: 0, zAxis: 0, speed: 0, status: 'PAUSE' as RobotStatus };
+      return { gripForce: 4, xAxis: -2, yAxis: 1, zAxis: 0, speed: 5, status: 'PAUSE' as RobotStatus };
     case 'Happy':
+      return { gripForce: 14 + cf * 6, xAxis: 5 + cf * 8, yAxis: 6 + cf * 6, zAxis: 3 + cf * 4, speed: 50 + cf * 20, status: 'SAFE' as RobotStatus };
     case 'Neutral':
-      return { gripForce: 14 + Math.random() * 4, xAxis: Math.random() * 10 - 5, yAxis: Math.random() * 8, zAxis: Math.random() * 6 - 3, speed: 45 + Math.random() * 15, status: 'SAFE' as RobotStatus };
+      return { gripForce: 12 + cf * 4, xAxis: 2 + cf * 4, yAxis: 3 + cf * 4, zAxis: 1 + cf * 2, speed: 40 + cf * 15, status: 'SAFE' as RobotStatus };
     case 'Sad':
-      return { gripForce: 12, xAxis: Math.random() * 6 - 3, yAxis: Math.random() * 5, zAxis: 0, speed: 35, status: 'CAUTION' as RobotStatus };
+      return { gripForce: 10 + cf * 3, xAxis: -3 * cf, yAxis: 4 * cf, zAxis: -1, speed: 25 + cf * 15, status: 'CAUTION' as RobotStatus };
     case 'Surprise':
-      return { gripForce: 10, xAxis: 0, yAxis: 3, zAxis: -2, speed: 30, status: 'SAFE' as RobotStatus };
+      return { gripForce: 8 + cf * 5, xAxis: 3 * cf, yAxis: 5 * cf, zAxis: -3 * cf, speed: 30 + cf * 10, status: 'SAFE' as RobotStatus };
     default:
-      return base;
+      return { gripForce: 15, xAxis: 0, yAxis: 0, zAxis: 0, speed: 50, status: 'SAFE' as RobotStatus };
   }
 }
 

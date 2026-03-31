@@ -1,7 +1,8 @@
-import { Home, Plus, History, User, FileText, LogOut, Bot } from 'lucide-react';
+import { Home, Plus, History, User, FileText, LogOut, Bot, Shield } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
@@ -21,11 +22,14 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { isAdmin } = useAdmin();
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
+
+  const allItems = isAdmin ? [...items, { title: 'Admin Panel', url: '/admin', icon: Shield }] : items;
 
   return (
     <Sidebar collapsible="icon">
@@ -39,7 +43,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {allItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
