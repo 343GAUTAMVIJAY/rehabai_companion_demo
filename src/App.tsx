@@ -13,6 +13,7 @@ import SessionHistory from "./pages/SessionHistory";
 import SessionReport from "./pages/SessionReport";
 import Reports from "./pages/Reports";
 import Profile from "./pages/Profile";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
