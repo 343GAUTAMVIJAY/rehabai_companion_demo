@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSession from "./pages/NewSession";
@@ -34,6 +35,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/new-session" element={<NewSession />} />
