@@ -83,7 +83,7 @@ const Login = () => {
         toast.success('Signed in successfully');
         navigate('/dashboard');
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -93,13 +93,17 @@ const Login = () => {
         });
         if (error) throw error;
 
-        // Trigger OTP flow
-        await sendOtp(email);
-        setOtpEmail(email);
-        setOtp(['', '', '', '', '', '']);
-        setOtpOpen(true);
-        setResendIn(30);
-        toast.success('We sent a 6-digit code to your email');
+        // Email verification is disabled — users get a session immediately.
+        if (data.session) {
+          toast.success('Account created! Welcome.');
+          navigate('/dashboard');
+        } else {
+          // Fallback: try direct sign-in
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInErr) throw signInErr;
+          toast.success('Account created!');
+          navigate('/dashboard');
+        }
       }
     } catch (err: any) {
       toast.error(mapError(err));
