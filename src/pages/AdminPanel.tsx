@@ -107,13 +107,18 @@ const AdminPanel = () => {
                         <td className="py-3"><Badge variant="secondary">{p.role || 'User'}</Badge></td>
                         <td className="py-3 text-muted-foreground">{p.hospital || '—'}</td>
                         <td className="py-3">
-                          <Select defaultValue="user" onValueChange={v => handleRoleChange(p.user_id, v)}>
-                            <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <Select defaultValue="user" onValueChange={v => handleRoleChange(p.user_id, v)}>
+                              <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(p.user_id, p.full_name || 'this user')}>
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
