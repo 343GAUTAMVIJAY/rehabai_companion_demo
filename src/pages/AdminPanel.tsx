@@ -60,6 +60,17 @@ const AdminPanel = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string, name: string) => {
+    if (!confirm(`Delete user "${name}"? This permanently removes their account, patients and sessions.`)) return;
+    const { data, error } = await supabase.functions.invoke('admin-delete-user', { body: { user_id: userId } });
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || error?.message || 'Failed to delete user');
+      return;
+    }
+    toast.success('User deleted');
+    loadData();
+  };
+
   if (adminLoading || loading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Loading...</div>;
 
   return (
