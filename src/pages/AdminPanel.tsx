@@ -178,8 +178,6 @@ const AdminPanel = () => {
                         <td className="py-3 font-mono">{s.duration_seconds ? `${Math.floor(s.duration_seconds/60)}:${String(s.duration_seconds%60).padStart(2,'0')}` : '—'}</td>
                         <td className="py-3"><Badge variant="secondary">{s.dominant_emotion || '—'}</Badge></td>
                         <td className="py-3 font-mono">{s.avg_grip_force ? `${Number(s.avg_grip_force).toFixed(1)} N` : '—'}</td>
-                        <td className="py-3 font-mono">{s.avg_heart_rate ? `${s.avg_heart_rate} bpm` : '—'}</td>
-                        <td className="py-3 font-mono">{s.avg_bp_systolic && s.avg_bp_diastolic ? `${s.avg_bp_systolic}/${s.avg_bp_diastolic}` : '—'}</td>
                         <td className="py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${s.status === 'SAFE' ? 'status-safe' : s.status === 'CAUTION' ? 'status-caution' : 'status-pause'}`}>{s.status}</span></td>
                         <td className="py-3">
                           <div className="flex gap-1">
