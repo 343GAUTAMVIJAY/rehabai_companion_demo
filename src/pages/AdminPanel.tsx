@@ -155,21 +155,45 @@ const AdminPanel = () => {
 
         <TabsContent value="sessions">
           <Card className="shadow-card">
-            <CardHeader><CardTitle>All Sessions</CardTitle></CardHeader>
+            <CardHeader><CardTitle>All Sessions ({sessions.length})</CardTitle></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b"><th className="pb-3 text-left font-medium text-muted-foreground">Patient</th><th className="pb-3 text-left font-medium text-muted-foreground">Date</th><th className="pb-3 text-left font-medium text-muted-foreground">Emotion</th><th className="pb-3 text-left font-medium text-muted-foreground">Status</th><th className="pb-3 text-left font-medium text-muted-foreground">Actions</th></tr></thead>
+                  <thead><tr className="border-b">
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Patient</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Therapist</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Date</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Duration</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Emotion</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Avg Grip</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">HR</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">BP</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Status</th>
+                    <th className="pb-3 text-left font-medium text-muted-foreground">Actions</th>
+                  </tr></thead>
                   <tbody>
                     {sessions.map(s => (
-                      <tr key={s.id} className="border-b last:border-0">
+                      <tr key={s.id} className="border-b last:border-0 hover:bg-muted/50">
                         <td className="py-3 font-medium">{(s.patients as any)?.name || '—'}</td>
-                        <td className="py-3 text-muted-foreground">{new Date(s.date).toLocaleDateString()}</td>
+                        <td className="py-3 text-muted-foreground">{s.therapist?.full_name || '—'}</td>
+                        <td className="py-3 text-muted-foreground">{new Date(s.date).toLocaleString()}</td>
+                        <td className="py-3 font-mono">{s.duration_seconds ? `${Math.floor(s.duration_seconds/60)}:${String(s.duration_seconds%60).padStart(2,'0')}` : '—'}</td>
                         <td className="py-3"><Badge variant="secondary">{s.dominant_emotion || '—'}</Badge></td>
+                        <td className="py-3 font-mono">{s.avg_grip_force ? `${Number(s.avg_grip_force).toFixed(1)} N` : '—'}</td>
+                        <td className="py-3 font-mono">{s.avg_heart_rate ? `${s.avg_heart_rate} bpm` : '—'}</td>
+                        <td className="py-3 font-mono">{s.avg_bp_systolic && s.avg_bp_diastolic ? `${s.avg_bp_systolic}/${s.avg_bp_diastolic}` : '—'}</td>
                         <td className="py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${s.status === 'SAFE' ? 'status-safe' : s.status === 'CAUTION' ? 'status-caution' : 'status-pause'}`}>{s.status}</span></td>
-                        <td className="py-3"><Button variant="ghost" size="sm" onClick={() => handleDeleteSession(s.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
+                        <td className="py-3">
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => navigate(`/report/${s.id}`)}>View</Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteSession(s.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
+                    {sessions.length === 0 && (
+                      <tr><td colSpan={10} className="py-8 text-center text-muted-foreground">No sessions in database.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
