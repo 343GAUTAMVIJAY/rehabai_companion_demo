@@ -166,8 +166,6 @@ const AdminPanel = () => {
                     <th className="pb-3 text-left font-medium text-muted-foreground">Duration</th>
                     <th className="pb-3 text-left font-medium text-muted-foreground">Emotion</th>
                     <th className="pb-3 text-left font-medium text-muted-foreground">Avg Grip</th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">HR</th>
-                    <th className="pb-3 text-left font-medium text-muted-foreground">BP</th>
                     <th className="pb-3 text-left font-medium text-muted-foreground">Status</th>
                     <th className="pb-3 text-left font-medium text-muted-foreground">Actions</th>
                   </tr></thead>
