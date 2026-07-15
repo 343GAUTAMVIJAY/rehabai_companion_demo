@@ -29,11 +29,12 @@ const AdminPanel = () => {
     const [p, pt, s] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('patients').select('*'),
-      supabase.from('sessions').select('*, patients(name), profiles:user_id(full_name, hospital)').order('date', { ascending: false }),
+      supabase.from('sessions').select('*, patients(name)').order('date', { ascending: false }),
     ]);
+    const profileMap = new Map((p.data || []).map((x: any) => [x.user_id, x]));
     setProfiles(p.data || []);
     setPatients(pt.data || []);
-    setSessions(s.data || []);
+    setSessions((s.data || []).map((x: any) => ({ ...x, therapist: profileMap.get(x.user_id) })));
     setLoading(false);
   };
 
