@@ -29,7 +29,7 @@ const AdminPanel = () => {
     const [p, pt, s] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('patients').select('*'),
-      supabase.from('sessions').select('*, patients(name)'),
+      supabase.from('sessions').select('*, patients(name), profiles:user_id(full_name, hospital)').order('date', { ascending: false }),
     ]);
     setProfiles(p.data || []);
     setPatients(pt.data || []);
